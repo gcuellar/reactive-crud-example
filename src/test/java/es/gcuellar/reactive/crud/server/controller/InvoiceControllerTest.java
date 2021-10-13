@@ -5,6 +5,7 @@ import es.gcuellar.reactive.crud.server.service.InvoiceService;
 import es.gcuellar.reactive.crud.server.utils.ObjectRandomizer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -48,6 +49,7 @@ public class InvoiceControllerTest {
     @Test
     public void getInvoiceTestOK(){
         Integer id = invoices.get(0).getId();
+        String name = invoices.get(0).getName();
 
         when(invoiceService.getInvoice(id)).thenReturn(Mono.just(invoices.get(0)));
 
@@ -56,6 +58,29 @@ public class InvoiceControllerTest {
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.name").isNotEmpty();
+                .jsonPath("$.number").isNotEmpty()
+                .jsonPath("$.name").isEqualTo(name);
+    }
+
+    @Test
+    public void postInvoiceTestOk(){
+        ObjectRandomizer.RandomGenerationExclusion excludedField =
+                new ObjectRandomizer.RandomGenerationExclusion("id", Integer.class, null);
+        Invoice newInvoice = ObjectRandomizer.random(Invoice.class, excludedField);
+
+        Invoice createdInvoice = new Invoice();
+        BeanUtils.copyProperties(newInvoice,createdInvoice);
+        createdInvoice.setId(-1);
+
+        when(invoiceService.createInvoice(newInvoice)).thenReturn(Mono.just(createdInvoice));
+
+        webClient.post().uri("/invoices")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .body(Mono.just(newInvoice), Invoice.class)
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody()
+                .jsonPath("$.id").isEqualTo(-1);
     }
 }
